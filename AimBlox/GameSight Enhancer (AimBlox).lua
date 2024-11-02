@@ -1,3 +1,23 @@
+local savedHeadProperties = {}
+
+local function saveLocalPlayerHeadProperties()
+    if localPlayer and localPlayer.Character then
+        local head = localPlayer.Character:FindFirstChild("Head")
+        if head then
+            savedHeadProperties = {
+                Size = head.Size,
+                Transparency = head.Transparency,
+                BrickColor = head.BrickColor,
+                Material = head.Material,
+                CanCollide = head.CanCollide,
+                Massless = head.Massless
+            }
+        end
+    end
+end
+
+saveLocalPlayerHeadProperties()
+
 ------------------------------------------ CHECK IF PATCH ------------------------------------------
 
 local NotificationHolder = loadstring(game:HttpGet("https://raw.githubusercontent.com/BocusLuke/UI/main/STX/Module.Lua"))()
@@ -231,6 +251,8 @@ local ESPToggle = ESPTab:CreateToggle({
 local AIMTab = Window:CreateTab("HITBOX Settings", 4483362458)
 local AIMSection = AIMTab:CreateSection("HITBOX Control")
 
+_G.HitboxEnabled = true
+
 _G.HeadSize = 20
 local MaxHeadSize = 45
 
@@ -242,6 +264,34 @@ if type(_G.HeadSize) ~= "number" or _G.HeadSize <= 0 then
 elseif _G.HeadSize > MaxHeadSize then
     _G.HeadSize = MaxHeadSize
 end
+
+local function resetHitboxes()
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            if head then
+                head.Size = savedHeadProperties.Size or Vector3.new(2, 2, 2)
+                head.Transparency = savedHeadProperties.Transparency or 0
+                head.BrickColor = savedHeadProperties.BrickColor or BrickColor.new("Medium stone grey")
+                head.Material = savedHeadProperties.Material or Enum.Material.Plastic
+                head.CanCollide = savedHeadProperties.CanCollide or true
+                head.Massless = savedHeadProperties.Massless or false
+            end
+        end
+    end
+end
+
+local HitboxToggle = AIMTab:CreateToggle({
+    Name = "Toggle Hitbox",
+    CurrentValue = _G.HitboxEnabled,
+    Flag = "HitboxToggle",
+    Callback = function(Value)
+        _G.HitboxEnabled = Value
+        if not _G.HitboxEnabled then
+            resetHitboxes()
+        end
+    end,
+})
 
 local HeadSizeSlider = AIMTab:CreateSlider({
     Name = "Head Size",
@@ -277,16 +327,30 @@ local HeadTransparencySlider = AIMTab:CreateSlider({
 })
 
 game:GetService('RunService').RenderStepped:Connect(function()
-    if _G.ESPEnabled then
-        local localTeam = localPlayer:GetAttribute("Team")
-
-        for _, player in pairs(game:GetService('Players'):GetPlayers()) do
-            if player ~= localPlayer then
-                pcall(function()
-                    if player.Character then
-                        local head = player.Character:FindFirstChild("Head")
-                        if head then
-                            local playerTeam = player:GetAttribute("Team")
+    local localTeam = localPlayer:GetAttribute("Team")
+    for _, player in pairs(game:GetService('Players'):GetPlayers()) do
+        if player ~= localPlayer then
+            pcall(function()
+                if player.Character then
+                    local head = player.Character:FindFirstChild("Head")
+                    if head then
+                        local playerTeam = player:GetAttribute("Team")
+                        if _G.ESPEnabled then
+                            if localTeam and playerTeam then
+                                if playerTeam ~= localTeam then
+                                    addESP(player.Character, true, false)
+                                else
+                                    removeESP(player.Character)
+                                end
+                            elseif localTeam == "Neutral" then
+                                addESP(player.Character, false, true)
+                            else
+                                removeESP(player.Character)
+                            end
+                        else
+                            removeESP(player.Character)
+                        end
+                        if _G.HitboxEnabled then
                             if localTeam and playerTeam then
                                 if playerTeam ~= localTeam then
                                     head.Size = Vector3.new(_G.HeadSize, _G.HeadSize, _G.HeadSize)
@@ -295,9 +359,6 @@ game:GetService('RunService').RenderStepped:Connect(function()
                                     head.Material = Enum.Material.Neon
                                     head.CanCollide = false
                                     head.Massless = true
-                                    addESP(player.Character, true, false)
-                                else
-                                    removeESP(player.Character)
                                 end
                             elseif localTeam == "Neutral" then
                                 head.Size = Vector3.new(_G.HeadSize, _G.HeadSize, _G.HeadSize)
@@ -306,14 +367,11 @@ game:GetService('RunService').RenderStepped:Connect(function()
                                 head.Material = Enum.Material.Neon
                                 head.CanCollide = false
                                 head.Massless = true
-                                addESP(player.Character, false, true)
-                            else
-                                removeESP(player.Character)
                             end
                         end
                     end
-                end)
-            end
+                end
+            end)
         end
     end
 end)
@@ -353,24 +411,6 @@ local InfJumpToggle = PlayersTab:CreateToggle({
 local SettingsTab = Window:CreateTab("Settings", 4483362458)
 local SettingsSection = SettingsTab:CreateSection("Settings Control")
 
-local savedHeadProperties = {}
-
-local function saveLocalPlayerHeadProperties()
-    if localPlayer and localPlayer.Character then
-        local head = localPlayer.Character:FindFirstChild("Head")
-        if head then
-            savedHeadProperties = {
-                Size = head.Size,
-                Transparency = head.Transparency,
-                BrickColor = head.BrickColor,
-                Material = head.Material,
-                CanCollide = head.CanCollide,
-                Massless = head.Massless
-            }
-        end
-    end
-end
-
 local DestroyButton = SettingsTab:CreateButton({
     Name = "Destroy UI",
     Callback = function()
@@ -394,5 +434,4 @@ local DestroyButton = SettingsTab:CreateButton({
     end
 })
 
-saveLocalPlayerHeadProperties()
 Rayfield:LoadConfiguration()
